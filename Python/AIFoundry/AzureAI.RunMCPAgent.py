@@ -25,9 +25,9 @@ async def main():
     async with (
         AzureCliCredential() as credential,
         ChatAgent(
-            chat_client=AzureAIAgentClient(async_credential=credential),
-            name="AgentFramework-MCPAgent",
-            instructions="You are a utility agent, answer questions based on the utilities available to you!",
+            chat_client=AzureAIAgentClient(
+                async_credential=credential, 
+                agent_id="asst_Oggq9YC5BXkyo668ECOtd67M"),
             tools=[mcpTools],
         ) as agent,
     ):

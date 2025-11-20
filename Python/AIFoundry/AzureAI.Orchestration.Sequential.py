@@ -34,16 +34,12 @@ async def main():
     async with (
         AzureCliCredential() as credential,
         ChatAgent(
-            chat_client=AzureAIAgentClient(async_credential=credential),
-            name="AgentFrameworkMCPAgent1",
-            instructions="You are a utility agent, answer questions based on the utilities available to you!",
+            chat_client=AzureAIAgentClient(async_credential=credential, agent_id="asst_SVSNpSIC6uoMIWmM0nWiNAl0"),
             tools=[mcpTools1],
         ) as mathAgent,
 
         ChatAgent(
-            chat_client=AzureAIAgentClient(async_credential=credential),
-            name="AgentFrameworkMCPAgent2",
-            instructions="You are a utility agent, answer questions based on the utilities available to you!",
+            chat_client=AzureAIAgentClient(async_credential=credential, agent_id="asst_Cct8boe3WxHHwjlnu3fULgrg"),
             tools=[mcpTools2],
         ) as tempAgent,
     ):

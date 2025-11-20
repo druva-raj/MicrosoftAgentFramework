@@ -17,11 +17,8 @@ async def main():
         ChatAgent(
             chat_client=AzureAIAgentClient(
                 async_credential=credential,
-                ## Existing Agent - either use agent_id or agent_name
-                # agent_id="asst_Zl9a0pnLuqL43DMYMhAh6vYo",
-                agent_name="AgentFramework-BasicAgent",
+                agent_id="asst_m419Lm5ctXI5BDIScwisiIWq",
             ),
-            instructions="You are a helpful assistant."
         ) as agent,
     ):
         print("Agent: ", end="", flush=True)

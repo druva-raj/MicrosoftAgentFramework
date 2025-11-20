@@ -8,7 +8,7 @@ from agent_framework.azure import AzureAIAgentClient
 from azure.identity.aio import AzureCliCredential
 
 """
-Azure AI Agent Basic Example
+Azure AI Existing Agent Example
 """
 
 async def main():
@@ -17,11 +17,8 @@ async def main():
         ChatAgent(
             chat_client=AzureAIAgentClient(
                 async_credential=credential,
-                ## Existing Agent - either use agent_id or agent_name
-                ## agent_id="asst_Zl9a0pnLuqL43DMYMhAh6vYo"
-                agent_name="AgentFramework-BasicAgent",
+                agent_id="asst_hvBPbv7zF3whlYtuldKndBtR", # The ID of an existing agent to use. If not provided and agents_client is provided, a new agent will be created (and deleted after the request). If neither agents_client nor agent_id is provided, both will be created and managed automatically.
             ),
-            instructions="You are a helpful assistant."
         ) as agent,
     ):
         result = await agent.run("What do you know about agents?")
