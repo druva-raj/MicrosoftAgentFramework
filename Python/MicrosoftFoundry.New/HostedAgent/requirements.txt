@@ -1,9 +1,11 @@
-# Core Agent Framework (without all extras to avoid Rust compilation)
-agent-framework-core>=1.0.0b251223
-agent-framework-azure-ai>=1.0.0b251223
+# Microsoft Agent Framework (umbrella package — includes foundry connector)
+agent-framework>=1.5.0
 
-# Hosting adapter for Foundry
-azure-ai-agentserver-agentframework>=1.0.0b7
+# Foundry hosting adapter (provides ResponsesHostServer)
+agent-framework-foundry-hosting>=1.0.0a260519
 
 # Azure authentication
-azure-identity>=1.25.0
+azure-identity>=1.25.3
+
+# .env file loading
+python-dotenv>=1.0.0

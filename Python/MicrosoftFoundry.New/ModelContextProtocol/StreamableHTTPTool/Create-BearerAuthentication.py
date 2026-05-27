@@ -4,10 +4,8 @@ import asyncio
 import os
 from pathlib import Path
 
-from httpx import AsyncClient
-
-from agent_framework import MCPStreamableHTTPTool
-from agent_framework.azure import AzureAIProjectAgentProvider
+from agent_framework import Agent, MCPStreamableHTTPTool
+from agent_framework.foundry import FoundryChatClient
 from azure.identity.aio import AzureCliCredential
 from dotenv import load_dotenv
 
@@ -15,59 +13,60 @@ from dotenv import load_dotenv
 ENV_PATH = Path(__file__).parent.parent / ".env"
 
 """
-Azure AI Agent with Hosted MCP Tool - Project Connection Authentication Example
+Foundry Chat Client with Streamable HTTP MCP Tool - Bearer Authentication Example
 
-This sample demonstrates how to use Bearer Token authentication with a Hosted MCP Tool
-when using AzureAIProjectAgentProvider. 
+This sample demonstrates how to use Bearer Token authentication with a locally
+connected MCP server via ``MCPStreamableHTTPTool`` and ``FoundryChatClient``.
 
-IMPORTANT: When using AzureAIProjectAgentProvider, you cannot pass sensitive headers 
-(like Authorization) directly. Instead, you must use a project connection stored in 
-your Azure AI Foundry project via the `project_connection_id` in additional_properties.
-
-KNOWN LIMITATION: The current framework version may not properly pass project_connection_id 
-to the Azure AI Agent Service when using AzureAIProjectAgentProvider. This is a framework 
-gap that needs to be addressed.
+Unlike a hosted MCP tool, the MCP connection here is made from the client
+process, so the bearer token never has to leave the local environment.
 
 Pre-requisites:
-- Set up the AZURE_AI_PROJECT_ENDPOINT and AZURE_AI_MODEL_DEPLOYMENT_NAME environment variables.
-- Create a Custom Key connection in your Azure AI Foundry project with the bearer token.
-- Set the MCP_CUSTOM_PROJECT_CONNECTION_ID environment variable with the connection name/id.
+- Set FOUNDRY_PROJECT_ENDPOINT (or AZURE_AI_PROJECT_ENDPOINT) and
+  AZURE_AI_MODEL_DEPLOYMENT_NAME environment variables.
+- Set the MCP_BEARER_TOKEN environment variable with the bearer token for the
+  upstream MCP server.
 """
 
 
 async def main() -> None:
-    """Example showing use of Hosted MCP Tool with Project Connection Authentication."""
-    print("=== Azure AI Agent with Hosted MCP Tool - Project Connection Auth ===\n")
+    """Example showing use of MCPStreamableHTTPTool with Bearer Authentication."""
+    print("=== Foundry Chat Client with Streamable HTTP MCP - Bearer Auth ===\n")
     load_dotenv(ENV_PATH)
 
-    # For Azure AI Foundry, use project_connection_id instead of headers
-    # Create a connection in Azure AI Foundry portal and reference it by name
-    project_connection_id = os.getenv("MCP_CUSTOM_PROJECT_CONNECTION_ID")
+    project_endpoint = os.environ.get("FOUNDRY_PROJECT_ENDPOINT") or os.environ["AZURE_AI_PROJECT_ENDPOINT"]
+    model = os.environ.get("FOUNDRY_MODEL") or os.environ["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
 
-    async with (
-        AzureCliCredential() as credential,
-        AzureAIProjectAgentProvider(credential=credential) as provider,
-        AsyncClient(headers={"Authorization": f"Bearer {os.getenv('MCP_BEARER_TOKEN')}"}) as http_client,
-    ):
-        mcp_tool = MCPStreamableHTTPTool(
+    bearer_token = os.environ["MCP_BEARER_TOKEN"]
+    token = bearer_token if bearer_token.startswith("Bearer ") else f"Bearer {bearer_token}"
+
+    async with AzureCliCredential() as credential:
+        client = FoundryChatClient(
+            project_endpoint=project_endpoint,
+            model=model,
+            credential=credential,
+        )
+
+        async with MCPStreamableHTTPTool(
             name="Custom_MCP",
             url="https://app-ext-eus2-mcp-profx-01.azurewebsites.net/mcp",
             allowed_tools=["multiply", "validate_user"],
             approval_mode="never_require",
-            http_client=http_client,
+            headers={"Authorization": token},
             load_prompts=False,  # Disable prompt loading if server doesn't support it
-        )
-        
-        agent = await provider.create_agent(
-            name="AF-MCP-Streamable-BearerAuth-Agent",
-            instructions="Only use the available tools to answer the user's questions.",
-            tools=mcp_tool,
-        )
+        ) as mcp_tool:
+            agent = Agent(
+                client=client,
+                name="AF-MCP-Streamable-BearerAuth-Agent",
+                instructions="Only use the available tools to answer the user's questions.",
+                tools=mcp_tool,
+            )
 
-        query = "Validate user druvan"
-        print(f"User: {query}")
-        result = await agent.run(query, tools=[mcp_tool])
-        print(f"Agent: {result}")
+            query = "Validate user druvan"
+            print(f"User: {query}")
+            result = await agent.run(query)
+            print(f"Agent: {result}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

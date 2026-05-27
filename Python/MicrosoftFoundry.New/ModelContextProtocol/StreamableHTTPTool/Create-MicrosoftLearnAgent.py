@@ -25,21 +25,24 @@ logging.getLogger("mcp").setLevel(logging.INFO)
 # Agent Framework internal logging
 logging.getLogger("agent_framework").setLevel(logging.INFO)
 
-from agent_framework import MCPStreamableHTTPTool
-from agent_framework.azure import AzureAIProjectAgentProvider
+from agent_framework import Agent, MCPStreamableHTTPTool
+from agent_framework.foundry import FoundryChatClient
 from agent_framework.observability import configure_otel_providers
 from azure.identity.aio import AzureCliCredential
+from dotenv import load_dotenv
 
 """
-Azure AI Agent with Local MCP Example
+Foundry Chat Client with Streamable HTTP MCP Tool - Microsoft Learn Example
 
-This sample demonstrates integration of Azure AI Agents with local Model Context Protocol (MCP)
-servers using MCPStreamableHTTPTool.
+This sample demonstrates integration of ``FoundryChatClient`` with a remote
+Model Context Protocol (MCP) server using ``MCPStreamableHTTPTool``. The MCP
+connection is created locally; the agent passes the tool definitions to the
+Foundry model and invokes tools on this side.
 
 Pre-requisites:
-- Set AZURE_AI_PROJECT_ENDPOINT and AZURE_AI_MODEL_DEPLOYMENT_NAME environment variables.
+- Set FOUNDRY_PROJECT_ENDPOINT (or AZURE_AI_PROJECT_ENDPOINT) and
+  AZURE_AI_MODEL_DEPLOYMENT_NAME environment variables.
 """
-from dotenv import load_dotenv
 
 # Load .env from parent directory
 ENV_PATH = Path(__file__).parent.parent / ".env"
@@ -61,37 +64,42 @@ from azure.ai.projects.telemetry import AIProjectInstrumentor
 AIProjectInstrumentor().instrument(enable_content_recording=True)
 # ========== END TRACING SETUP ==========
 
+
 async def main() -> None:
-    """Example showing MCPStreamableHTTPTool with Azure AI Agent.
-    
-    Note: With AzureAIProjectAgentProvider, the MCP connection happens SERVER-SIDE
-    in Azure AI Foundry, not locally. The MCPStreamableHTTPTool definition is sent
-    to the Azure service, which then connects to the MCP server.
-    """
-    print("=== Azure AI Agent with Local MCP Tools ===\n")
+    """Example showing MCPStreamableHTTPTool with a Foundry Chat Client agent."""
+    print("=== Foundry Chat Client with Microsoft Learn MCP (Streamable HTTP) ===\n")
     load_dotenv(ENV_PATH)
 
-    async with (
-        AzureCliCredential() as credential,
-        AzureAIProjectAgentProvider(credential=credential) as provider,
-    ):
-        
-        mcp_tool = MCPStreamableHTTPTool(
+    project_endpoint = os.environ.get("FOUNDRY_PROJECT_ENDPOINT") or os.environ["AZURE_AI_PROJECT_ENDPOINT"]
+    model = os.environ.get("FOUNDRY_MODEL") or os.environ["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
+
+    async with AzureCliCredential() as credential:
+        client = FoundryChatClient(
+            project_endpoint=project_endpoint,
+            model=model,
+            credential=credential,
+        )
+
+        async with MCPStreamableHTTPTool(
             name="Microsoft Learn MCP",
             url="https://learn.microsoft.com/api/mcp",
-        )
+        ) as mcp_tool:
+            agent = Agent(
+                client=client,
+                name="StreamableDocsAgent",
+                instructions=(
+                    "You are a helpful assistant that can help with Microsoft documentation questions. "
+                    "Always use the provided tool to look up answers from the Microsoft Learn MCP server. "
+                    "Provide references in your answers."
+                ),
+                tools=mcp_tool,
+            )
 
-        agent = await provider.create_agent(
-            name="StreamableDocsAgent",
-            instructions="You are a helpful assistant that can help with Microsoft documentation questions. Always use the provided tool to look up answers from the Microsoft Learn MCP server.Provide references in your answers.",
-            tools=mcp_tool
-        )
-
-        first_query = "What is Azure Sphere?"
-        print(f"User: {first_query}")
-        first_result = await agent.run(first_query, tools=[mcp_tool])
-        print(f"Agent: {first_result}")
-        print("\n=======================================\n")
+            first_query = "What is Azure Sphere?"
+            print(f"User: {first_query}")
+            first_result = await agent.run(first_query)
+            print(f"Agent: {first_result}")
+            print("\n=======================================\n")
 
 
 if __name__ == "__main__":
